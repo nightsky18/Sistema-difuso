@@ -39,8 +39,8 @@ class DifusoGui:
             self.interes_entries[int] = entry
 
         # Botón para ver funciones de membresía
-        self.boton_membresia = ttk.Button(frame, text="Ver Funciones de Membresía", command=self.mostrar_membresia)
-        self.boton_membresia.pack(pady=5)
+        # self.boton_membresia = ttk.Button(frame, text="Ver Funciones de Membresía", command=self.mostrar_membresia)
+        # self.boton_membresia.pack(pady=5)
 
         # Botón de Calcular
         self.boton_calcular = ttk.Button(frame, text="Calcular", command=self.obtener_resultados)
