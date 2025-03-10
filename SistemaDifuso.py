@@ -2,6 +2,8 @@ import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
 import matplotlib.pyplot as plt
+import tkinter as tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 class SistemaDifuso:
     def __init__(self):
@@ -26,42 +28,32 @@ class SistemaDifuso:
     def definir_funciones_membresia(self):
         """Define funciones de membresía con mejor ajuste"""
         for variable in list(self.habilidades.values()) + list(self.intereses.values()):
-            variable['bajo'] = fuzz.trimf(variable.universe, [0, 0, 2.5])
-            variable['medio'] = fuzz.trimf(variable.universe, [2, 3, 4])
-            variable['alto'] = fuzz.trimf(variable.universe, [3.5, 5, 5])
+            variable['bajo'] = fuzz.trimf(variable.universe, [0, 0, 2])
+            variable['medio'] = fuzz.trimf(variable.universe, [1, 2.5, 4])
+            variable['alto'] = fuzz.trimf(variable.universe, [3, 5, 5])
 
         for categoria in self.categorias_carreras.values():
-            categoria['bajo'] = fuzz.trimf(categoria.universe, [0, 0, 0.3])
-            categoria['medio'] = fuzz.trimf(categoria.universe, [0.2, 0.5, 0.8])
+            categoria['bajo'] = fuzz.trimf(categoria.universe, [0, 0, 0.5])
+            categoria['medio'] = fuzz.trimf(categoria.universe, [0.3, 0.5, 0.7])
             categoria['alto'] = fuzz.trimf(categoria.universe, [0.6, 1, 1])
 
     def definir_reglas(self):
-        """Define reglas mejoradas para activar correctamente los valores medio y alto"""
+        """Define reglas difusas reducidas para evitar sobrecarga."""
         self.reglas = []
-        categorias = {
-            "Ingeniería": ("Lógica", "Tecnología"),
-            "Artes": ("Creatividad", "Arte"),
-            "Administración": ("Análisis", "Negocios"),
-            "Humanidades": ("Trabajo en equipo", "Relaciones humanas"),
-            "Ciencias de la Salud": ("Empatía", "Investigación"),
-        }
 
-        for categoria, (habilidad, interes) in categorias.items():
-            # Bajo (más flexible)
-            self.reglas.append(ctrl.Rule(self.habilidades[habilidad]['bajo'] | self.intereses[interes]['bajo'], 
-                                         self.categorias_carreras[categoria]['bajo']))
+        # Reglas basadas solo en nivel alto de habilidades e intereses
+        for hab in self.habilidades.values():
+            self.reglas.append(ctrl.Rule(hab['alto'], self.categorias_carreras["Ingeniería"]['alto']))
+            self.reglas.append(ctrl.Rule(hab['bajo'], self.categorias_carreras["Ingeniería"]['bajo']))
 
-            # Medio (permitiendo combinaciones con valores altos)
-            self.reglas.append(ctrl.Rule((self.habilidades[habilidad]['medio'] & self.intereses[interes]['medio']) |
-                                         (self.habilidades[habilidad]['alto'] & self.intereses[interes]['medio']) |
-                                         (self.habilidades[habilidad]['medio'] & self.intereses[interes]['alto']),
-                                         self.categorias_carreras[categoria]['medio']))
+        for int in self.intereses.values():
+            self.reglas.append(ctrl.Rule(int['alto'], self.categorias_carreras["Artes"]['alto']))
+            self.reglas.append(ctrl.Rule(int['bajo'], self.categorias_carreras["Artes"]['bajo']))
 
-            # Alto (requiere que al menos uno sea alto y otro medio)
-            self.reglas.append(ctrl.Rule(self.habilidades[habilidad]['alto'] & self.intereses[interes]['alto'], 
-                                         self.categorias_carreras[categoria]['alto']))
-
-        print(f"✅ Se han definido {len(self.reglas)} reglas para el sistema difuso.")
+        # Reglas generales para todas las carreras
+        self.reglas.append(ctrl.Rule(self.habilidades["Trabajo en equipo"]['alto'], self.categorias_carreras["Ciencias de la Salud"]['alto']))
+        self.reglas.append(ctrl.Rule(self.intereses["Relaciones humanas"]['alto'], self.categorias_carreras["Humanidades"]['alto']))
+        self.reglas.append(ctrl.Rule(self.habilidades["Lógica"]['alto'], self.categorias_carreras["Administración"]['alto']))
 
     def crear_sistema_control(self):
         """Crea el sistema de control difuso"""
@@ -85,27 +77,22 @@ class SistemaDifuso:
             print(f"Error en la simulación: {e}")
             return {"error": "No se pudo ejecutar el sistema difuso."}
 
-        resultados = {cat: self.simulador.output.get(var.label, 0) for cat, var in self.categorias_carreras.items()}
+        resultados = {cat: self.simulador.output[var.label] for cat, var in self.categorias_carreras.items()}
         return resultados
 
-    def graficar_todas_membresias(self):
-        """Genera todas las gráficas de membresía sin errores de índice"""
-        todas_variables = {**self.habilidades, **self.intereses, **self.categorias_carreras}
-        num_vars = len(todas_variables)
-        num_filas = (num_vars // 4) + (1 if num_vars % 4 else 0)
-
-        fig, axes = plt.subplots(num_filas, 4, figsize=(15, 10))
-        axes = axes.ravel()[:num_vars]  # Ajusta la cantidad de gráficos al número de variables
-
-        for i, (nombre, var) in enumerate(todas_variables.items()):
+    def graficar_membresia(self):
+        """Genera gráficos de membresía para cada habilidad e interés."""
+        for nombre, var in {**self.habilidades, **self.intereses}.items():
+            plt.figure(figsize=(6, 4))
             for etiqueta in ['bajo', 'medio', 'alto']:
-                if etiqueta in var.terms:
-                    axes[i].plot(var.universe, var[etiqueta].mf, label=etiqueta)
-            axes[i].set_title(nombre)
-            axes[i].legend()
-
-        plt.tight_layout()
-        plt.show()
+                plt.plot(var.universe, fuzz.trimf(var.universe, [0, 0, 2]) if etiqueta == 'bajo' else
+                         fuzz.trimf(var.universe, [1, 2.5, 4]) if etiqueta == 'medio' else
+                         fuzz.trimf(var.universe, [3, 5, 5]), label=etiqueta)
+            plt.title(f"Función de Membresía - {nombre}")
+            plt.xlabel("Grado")
+            plt.ylabel("Membresía")
+            plt.legend()
+            plt.show()
 
     def graficar_resultados(self, resultados):
         """Genera un gráfico con los grados de pertenencia de las carreras"""

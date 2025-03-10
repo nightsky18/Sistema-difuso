@@ -42,18 +42,28 @@ class DifusoGui:
         self.boton_calcular.pack(pady=10)
 
         self.root.mainloop()
-
-    def obtener_resultados(self):
-        """Obtiene los valores de entrada y ejecuta el sistema difuso."""
+        
+    def validar_entradas(self):  # <-- ¡Este método debe estar dentro de la clase!
+        """Valida los valores ingresados y los convierte a flotantes."""
         try:
             habilidades_valores = {hab: float(entry.get()) for hab, entry in self.habilidad_entries.items()}
             intereses_valores = {int: float(entry.get()) for int, entry in self.interes_entries.items()}
         except ValueError:
             messagebox.showerror("Error", "Debes ingresar valores numéricos entre 0 y 5.")
-            return
+            return None, None
 
+
+        # Validar rango 0-5
         if any(v < 0 or v > 5 for v in habilidades_valores.values()) or any(v < 0 or v > 5 for v in intereses_valores.values()):
             messagebox.showerror("Error", "Los valores deben estar entre 0 y 5.")
+            return None, None
+
+        return habilidades_valores, intereses_valores
+
+    def obtener_resultados(self):
+        """Obtiene los valores de entrada y ejecuta el sistema difuso."""
+        habilidades_valores, intereses_valores = self.validar_entradas()
+        if habilidades_valores is None or intereses_valores is None:
             return
 
         resultados = self.sistema.calcular_carreras(habilidades_valores, intereses_valores)
@@ -62,7 +72,9 @@ class DifusoGui:
             messagebox.showerror("Error", resultados["error"])
             return
 
-        self.mostrar_resultados(resultados)
+        # Mostrar gráficas de membresía con marcadores
+        self.sistema.graficar_membresia(habilidades_valores, intereses_valores, resultados)
+        self.mostrar_resultados(resultados)  # Mostrar mensaje y gráfica de barras
 
     def mostrar_resultados(self, resultados):
         """Muestra los resultados en una gráfica de barras."""
