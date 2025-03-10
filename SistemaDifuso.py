@@ -41,22 +41,58 @@ class SistemaDifuso:
             categoria['alto'] = fuzz.trapmf(categoria.universe, [0.6, 0.8, 1, 1])
             
     def definir_reglas(self):
-        """Define reglas difusas reducidas para evitar sobrecarga."""
+        """Define reglas para todas las categorías usando ciclos."""
         self.reglas = []
 
-        # Reglas basadas solo en nivel alto de habilidades e intereses
-        for hab in self.habilidades.values():
-            self.reglas.append(ctrl.Rule(hab['alto'], self.categorias_carreras["Ingeniería"]['alto']))
-            self.reglas.append(ctrl.Rule(hab['bajo'], self.categorias_carreras["Ingeniería"]['bajo']))
+        # Mapeo de categorías con sus habilidades e intereses relevantes
+        categorias_reglas = {
+                "Ingeniería": {
+                    "habilidades": ["Lógica", "Análisis"],
+                    "intereses": ["Tecnología", "Investigación"]  # Added "Investigación"
+                },
+                "Artes": {
+                    "habilidades": ["Creatividad"],
+                    "intereses": ["Arte"]
+                },
+                "Ciencias de la Salud": {
+                    "habilidades": ["Trabajo en equipo", "Empatía"],
+                    "intereses": ["Relaciones humanas"]
+                },
+                "Humanidades": {
+                    "habilidades": ["Creatividad", "Empatía"],
+                    "intereses": ["Relaciones humanas", "Arte"]
+                },
+                "Administración": {
+                    "habilidades": ["Lógica"],
+                    "intereses": ["Negocios"]
+                }
+        }
 
-        for int in self.intereses.values():
-            self.reglas.append(ctrl.Rule(int['alto'], self.categorias_carreras["Artes"]['alto']))
-            self.reglas.append(ctrl.Rule(int['bajo'], self.categorias_carreras["Artes"]['bajo']))
+        # Generar reglas para cada categoría
+        for categoria, datos in categorias_reglas.items():
+            # Reglas para habilidades
+            for hab_nombre in datos["habilidades"]:
+                hab = self.habilidades[hab_nombre]
+                self.reglas.append(ctrl.Rule(hab['alto'], self.categorias_carreras[categoria]['alto']))
+                self.reglas.append(ctrl.Rule(hab['medio'], self.categorias_carreras[categoria]['medio']))
+                self.reglas.append(ctrl.Rule(hab['bajo'], self.categorias_carreras[categoria]['bajo']))
 
-        # Reglas generales para todas las carreras
-        self.reglas.append(ctrl.Rule(self.habilidades["Trabajo en equipo"]['alto'], self.categorias_carreras["Ciencias de la Salud"]['alto']))
-        self.reglas.append(ctrl.Rule(self.intereses["Relaciones humanas"]['alto'], self.categorias_carreras["Humanidades"]['alto']))
-        self.reglas.append(ctrl.Rule(self.habilidades["Lógica"]['alto'], self.categorias_carreras["Administración"]['alto']))
+            # Reglas para intereses
+            for intr_nombre in datos["intereses"]:
+                intr = self.intereses[intr_nombre]
+                self.reglas.append(ctrl.Rule(intr['alto'], self.categorias_carreras[categoria]['alto']))
+                self.reglas.append(ctrl.Rule(intr['medio'], self.categorias_carreras[categoria]['medio']))
+                self.reglas.append(ctrl.Rule(intr['bajo'], self.categorias_carreras[categoria]['bajo']))
+
+        # Reglas combinadas para precisión (ej: Lógica + Tecnología)
+        self.reglas.append(ctrl.Rule(
+            self.habilidades["Lógica"]['alto'] & self.intereses["Tecnología"]['alto'],
+            self.categorias_carreras["Ingeniería"]['alto']
+        ))
+        self.reglas.append(ctrl.Rule(
+            self.habilidades["Creatividad"]['alto'] & self.intereses["Arte"]['alto'],
+            self.categorias_carreras["Artes"]['alto']
+        ))
 
     def crear_sistema_control(self):
         """Crea el sistema difuso."""
@@ -80,12 +116,16 @@ class SistemaDifuso:
             print(f"Error en la simulación: {e}")
             return {"error": "No se pudo ejecutar el sistema difuso."}
 
-        resultados = {cat: self.simulador.output[var.label] for cat, var in self.categorias_carreras.items()}
+        # Asegurar que todas las categorías tengan valor (incluso si es 0.0)
+        resultados = {}
+        for cat, var in self.categorias_carreras.items():
+            resultados[cat] = self.simulador.output.get(var.label, 0.0) 
+            
         return resultados
 
-    def graficar_membresia(self):
-        """Muestra las funciones de membresía en una ventana con scroll y organizadas en tres columnas."""
-
+    def graficar_membresia(self, habilidades_valores=None, intereses_valores=None, resultados=None):
+        """Muestra las funciones de membresía con marcadores de valores ingresados y resultados."""
+    
         # Crear la ventana de Tkinter
         root = tk.Toplevel()
         root.title("Funciones de Membresía")
@@ -128,37 +168,49 @@ class SistemaDifuso:
         # Convertir `axes` en una matriz bidimensional para evitar errores de indexado
         axes = np.reshape(axes, (num_filas, 3))
 
-        # Llenar la primera columna con habilidades
-        for i, (nombre, var) in enumerate(habilidades.items()):
-            for etiqueta in ['bajo', 'medio', 'alto']:  # Acceder a los términos definidos
+        # Llenar la primera columna con habilidades y marcadores de entrada
+        for i, (nombre, var) in enumerate(self.habilidades.items()):
+            for etiqueta in ['bajo', 'medio', 'alto']:
                 if etiqueta in var.terms:
                     axes[i, 0].plot(var.universe, var[etiqueta].mf, label=etiqueta)
+            
+            # Agregar línea vertical si hay valor ingresado
+            if habilidades_valores and nombre in habilidades_valores:
+                valor = habilidades_valores[nombre]
+                axes[i, 0].axvline(x=valor, color='red', linestyle='--', linewidth=2, label='Tu valor')
+                axes[i, 0].text(valor + 0.1, 0.8, f'{valor}', color='red', fontsize=8)
 
             axes[i, 0].set_title(f"Habilidad: {nombre}", fontsize=10)
-            axes[i, 0].set_xlabel("Grado")
-            axes[i, 0].set_ylabel("Membresía")
             axes[i, 0].legend()
 
-        # Llenar la segunda columna con intereses
-        for i, (nombre, var) in enumerate(intereses.items()):
-            for etiqueta in ['bajo', 'medio', 'alto']:  
+        # Llenar la segunda columna con intereses y marcadores de entrada
+        for i, (nombre, var) in enumerate(self.intereses.items()):
+            for etiqueta in ['bajo', 'medio', 'alto']:
                 if etiqueta in var.terms:
                     axes[i, 1].plot(var.universe, var[etiqueta].mf, label=etiqueta)
+            
+            # Agregar línea vertical si hay valor ingresado
+            if intereses_valores and nombre in intereses_valores:
+                valor = intereses_valores[nombre]
+                axes[i, 1].axvline(x=valor, color='red', linestyle='--', linewidth=2, label='Tu valor')
+                axes[i, 1].text(valor + 0.1, 0.8, f'{valor}', color='red', fontsize=8)
 
             axes[i, 1].set_title(f"Interés: {nombre}", fontsize=10)
-            axes[i, 1].set_xlabel("Grado")
-            axes[i, 1].set_ylabel("Membresía")
             axes[i, 1].legend()
 
-        # Llenar la tercera columna con categorías
-        for i, (nombre_categoria, var) in enumerate(categorias.items()):
-            for etiqueta in ['bajo', 'medio', 'alto']:  
+        # Llenar la tercera columna con categorías y marcadores de resultados
+        for i, (nombre_categoria, var) in enumerate(self.categorias_carreras.items()):
+            for etiqueta in ['bajo', 'medio', 'alto']:
                 if etiqueta in var.terms:
                     axes[i, 2].plot(var.universe, var[etiqueta].mf, label=etiqueta)
+            
+            # Agregar línea vertical si hay resultado
+            if resultados and nombre_categoria in resultados:
+                valor = resultados[nombre_categoria]
+                axes[i, 2].axvline(x=valor, color='green', linestyle='--', linewidth=2, label='Resultado')
+                axes[i, 2].text(valor + 0.05, 0.8, f'{valor:.2f}', color='green', fontsize=8)
 
             axes[i, 2].set_title(f"Categoría: {nombre_categoria}", fontsize=10)
-            axes[i, 2].set_xlabel("Grado")
-            axes[i, 2].set_ylabel("Membresía")
             axes[i, 2].legend()
 
         # Ajustar la distribución de los gráficos
