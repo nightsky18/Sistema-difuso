@@ -39,33 +39,33 @@ class SistemaDifuso:
             categoria['bajo'] = fuzz.trapmf(categoria.universe, [0, 0, 0.2, 0.4])
             categoria['medio'] = fuzz.trapmf(categoria.universe, [0.2, 0.4, 0.6, 0.8])
             categoria['alto'] = fuzz.trapmf(categoria.universe, [0.6, 0.8, 1, 1])
-            
+
     def definir_reglas(self):
         """Define reglas para todas las categorías usando ciclos."""
         self.reglas = []
 
         # Mapeo de categorías con sus habilidades e intereses relevantes
         categorias_reglas = {
-                "Ingeniería": {
-                    "habilidades": ["Lógica", "Análisis"],
-                    "intereses": ["Tecnología", "Investigación"]  # Added "Investigación"
-                },
-                "Artes": {
-                    "habilidades": ["Creatividad"],
-                    "intereses": ["Arte"]
-                },
-                "Ciencias de la Salud": {
-                    "habilidades": ["Trabajo en equipo", "Empatía"],
-                    "intereses": ["Relaciones humanas"]
-                },
-                "Humanidades": {
-                    "habilidades": ["Creatividad", "Empatía"],
-                    "intereses": ["Relaciones humanas", "Arte"]
-                },
-                "Administración": {
-                    "habilidades": ["Lógica"],
-                    "intereses": ["Negocios"]
-                }
+            "Ingeniería": {
+                "habilidades": ["Lógica"],
+                "intereses": ["Tecnología"]
+            },
+            "Artes": {
+                "habilidades": ["Creatividad"],
+                "intereses": ["Arte"]
+            },
+            "Ciencias de la Salud": {
+                "habilidades": ["Empatía"],
+                "intereses": ["Investigación"]
+            },
+            "Humanidades": {
+                "habilidades": ["Trabajo en equipo"],
+                "intereses": ["Relaciones humanas"]
+            },
+            "Administración": {
+                "habilidades": ["Análisis"],
+                "intereses": ["Negocios"]
+            }
         }
 
         # Generar reglas para cada categoría
@@ -99,7 +99,7 @@ class SistemaDifuso:
         print(f"Cantidad de reglas definidas: {len(self.reglas)}")
         if not self.reglas:
             raise ValueError("Error: No se han definido reglas difusas.")
-    
+
         self.controlador = ctrl.ControlSystem(self.reglas)
         self.simulador = ctrl.ControlSystemSimulation(self.controlador)
 
@@ -119,13 +119,13 @@ class SistemaDifuso:
         # Asegurar que todas las categorías tengan valor (incluso si es 0.0)
         resultados = {}
         for cat, var in self.categorias_carreras.items():
-            resultados[cat] = self.simulador.output.get(var.label, 0.0) 
-            
+            resultados[cat] = self.simulador.output.get(var.label, 0.0)
+
         return resultados
 
     def graficar_membresia(self, habilidades_valores=None, intereses_valores=None, resultados=None):
         """Muestra las funciones de membresía con marcadores de valores ingresados y resultados."""
-    
+
         # Crear la ventana de Tkinter
         root = tk.Toplevel()
         root.title("Funciones de Membresía")
@@ -151,14 +151,33 @@ class SistemaDifuso:
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Datos de habilidades, intereses y categorías
-        habilidades = self.habilidades
-        intereses = self.intereses
-        categorias = self.categorias_carreras
+        # Mapeo de categorías con sus habilidades e intereses relevantes
+        categorias_reglas = {
+            "Ingeniería": {
+                "habilidades": ["Lógica"],
+                "intereses": ["Tecnología"]
+            },
+            "Ciencias de la Salud": {
+                "habilidades": ["Empatía"],
+                "intereses": ["Investigación"]
+            },
+            "Humanidades": {
+                "habilidades": ["Trabajo en equipo"],
+                "intereses": ["Relaciones humanas"]
+            },
+            "Administración": {
+                "habilidades": ["Análisis"],
+                "intereses": ["Negocios"]
+            },
+            "Artes": {
+                "habilidades": ["Creatividad"],
+                "intereses": ["Arte"]
+            }
+        }
 
-        num_filas = max(len(habilidades), len(intereses), len(categorias))
+        num_filas = len(categorias_reglas)
 
-        # Crear figura con 3 columnas (Habilidades, Intereses, Categorías)
+        # Crear figura con 3 columnas (Categoría, Habilidad, Interés)
         fig, axes = plt.subplots(nrows=num_filas, ncols=3, figsize=(12, 3 * num_filas))
 
         # Si solo hay una fila, convertir `axes` en una lista de listas
@@ -168,49 +187,53 @@ class SistemaDifuso:
         # Convertir `axes` en una matriz bidimensional para evitar errores de indexado
         axes = np.reshape(axes, (num_filas, 3))
 
-        # Llenar la primera columna con habilidades y marcadores de entrada
-        for i, (nombre, var) in enumerate(self.habilidades.items()):
+        # Llenar las columnas en el orden especificado
+        for i, (categoria, datos) in enumerate(categorias_reglas.items()):
+            # Columna 1: Categoría profesional
+            var_categoria = self.categorias_carreras[categoria]
             for etiqueta in ['bajo', 'medio', 'alto']:
-                if etiqueta in var.terms:
-                    axes[i, 0].plot(var.universe, var[etiqueta].mf, label=etiqueta)
-            
-            # Agregar línea vertical si hay valor ingresado
-            if habilidades_valores and nombre in habilidades_valores:
-                valor = habilidades_valores[nombre]
-                axes[i, 0].axvline(x=valor, color='red', linestyle='--', linewidth=2, label='Tu valor')
-                axes[i, 0].text(valor + 0.1, 0.8, f'{valor}', color='red', fontsize=8)
+                if etiqueta in var_categoria.terms:
+                    axes[i, 0].plot(var_categoria.universe, var_categoria[etiqueta].mf, label=etiqueta)
 
-            axes[i, 0].set_title(f"Habilidad: {nombre}", fontsize=10)
+            # Agregar línea vertical si hay resultado
+            if resultados and categoria in resultados:
+                valor = resultados[categoria]
+                axes[i, 0].axvline(x=valor, color='green', linestyle='--', linewidth=2, label='Resultado')
+                axes[i, 0].text(valor + 0.05, 0.8, f'{valor:.2f}', color='green', fontsize=8)
+
+            axes[i, 0].set_title(f"Categoría: {categoria}", fontsize=10)
             axes[i, 0].legend()
 
-        # Llenar la segunda columna con intereses y marcadores de entrada
-        for i, (nombre, var) in enumerate(self.intereses.items()):
+            # Columna 2: Habilidad asociada
+            habilidad_nombre = datos["habilidades"][0]
+            var_habilidad = self.habilidades[habilidad_nombre]
             for etiqueta in ['bajo', 'medio', 'alto']:
-                if etiqueta in var.terms:
-                    axes[i, 1].plot(var.universe, var[etiqueta].mf, label=etiqueta)
-            
+                if etiqueta in var_habilidad.terms:
+                    axes[i, 1].plot(var_habilidad.universe, var_habilidad[etiqueta].mf, label=etiqueta)
+
             # Agregar línea vertical si hay valor ingresado
-            if intereses_valores and nombre in intereses_valores:
-                valor = intereses_valores[nombre]
+            if habilidades_valores and habilidad_nombre in habilidades_valores:
+                valor = habilidades_valores[habilidad_nombre]
                 axes[i, 1].axvline(x=valor, color='red', linestyle='--', linewidth=2, label='Tu valor')
                 axes[i, 1].text(valor + 0.1, 0.8, f'{valor}', color='red', fontsize=8)
 
-            axes[i, 1].set_title(f"Interés: {nombre}", fontsize=10)
+            axes[i, 1].set_title(f"Habilidad: {habilidad_nombre}", fontsize=10)
             axes[i, 1].legend()
 
-        # Llenar la tercera columna con categorías y marcadores de resultados
-        for i, (nombre_categoria, var) in enumerate(self.categorias_carreras.items()):
+            # Columna 3: Interés asociado
+            interes_nombre = datos["intereses"][0]
+            var_interes = self.intereses[interes_nombre]
             for etiqueta in ['bajo', 'medio', 'alto']:
-                if etiqueta in var.terms:
-                    axes[i, 2].plot(var.universe, var[etiqueta].mf, label=etiqueta)
-            
-            # Agregar línea vertical si hay resultado
-            if resultados and nombre_categoria in resultados:
-                valor = resultados[nombre_categoria]
-                axes[i, 2].axvline(x=valor, color='green', linestyle='--', linewidth=2, label='Resultado')
-                axes[i, 2].text(valor + 0.05, 0.8, f'{valor:.2f}', color='green', fontsize=8)
+                if etiqueta in var_interes.terms:
+                    axes[i, 2].plot(var_interes.universe, var_interes[etiqueta].mf, label=etiqueta)
 
-            axes[i, 2].set_title(f"Categoría: {nombre_categoria}", fontsize=10)
+            # Agregar línea vertical si hay valor ingresado
+            if intereses_valores and interes_nombre in intereses_valores:
+                valor = intereses_valores[interes_nombre]
+                axes[i, 2].axvline(x=valor, color='red', linestyle='--', linewidth=2, label='Tu valor')
+                axes[i, 2].text(valor + 0.1, 0.8, f'{valor}', color='red', fontsize=8)
+
+            axes[i, 2].set_title(f"Interés: {interes_nombre}", fontsize=10)
             axes[i, 2].legend()
 
         # Ajustar la distribución de los gráficos
@@ -222,7 +245,7 @@ class SistemaDifuso:
         canvas_fig.get_tk_widget().pack()
 
         root.mainloop()
-    
+
     def graficar_resultados(self, resultados):
         """Genera gráfico con los grados de pertenencia de las carreras."""
         categorias, valores = zip(*resultados.items())
