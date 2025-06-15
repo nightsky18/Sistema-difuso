@@ -31,14 +31,11 @@ pip install numpy matplotlib scikit-fuzzy
 - main.py: Inicia la aplicación.
 - DifusoGui.py: Contiene la interfaz gráfica.
 - SistemaDifuso.py: Lógica del sistema difuso (entradas, reglas y salida)
-- 
+
 ## Uso
 - Ejecuta el archivo main.py.
-
 - Ingresa valores entre 0 y 5 para tus habilidades e intereses.
-
 - Haz clic en "Calcular" para ver tu recomendación de carrera.
-
 - Visualiza el resultado en una gráfica de barras y funciones de membresía.
 
 ## Licencia
